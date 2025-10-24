@@ -36,8 +36,6 @@ for i=1:24
     y_hat(i) = (1/n_days) * sum(flow_hour_i); % estimation
     thresh(i) = max(flow_hour_i - y_hat(i)); % adaptive threshold
 
-
-
 end
 figure
 plot(y_hat+thresh, Color='red')

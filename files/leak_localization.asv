@@ -13,9 +13,11 @@ sensor2=30;
 Omega=[res_nom(sensor1,:);res_nom(sensor2,:)]; %leak sensitivity matrix considering only sensor1 and sensor2 installed
 
 
+
 figure(1)
 for i=1:31
-    plot(0,0,res_nom(sensor1,i),res_nom(sensor2,i))
+    plot(res_nom(sensor1,i),res_nom(sensor2,i), 'o', MarkerSize=10, MarkerFaceColor='blue')
+    hold on
 end
 figure(2)
 plot (Omega(1,:),Omega(2,:),'bx')
@@ -30,11 +32,15 @@ quiver(0,0,Omega(1,sensor1),Omega(2,sensor1),0) %Plot leak in sensor1 node direc
 quiver(0,0,Omega(1,sensor2),Omega(2,sensor2),0) %Plot leak in sensor2 node direction residuals 
 
 
+figure(3)
+scatter(res_nom(sensor1,:), res_nom(sensor2,:), 'filled');
+%text(r14, r30, arrayfun(@num2str, 1:31, 'UniformOutput', false));
+
 %% Hanoi
 load hanoi_residuals_f_20.mat
-%load hanoi_residuals_f_50.mat
+load hanoi_residuals_f_50.mat
 
-r1=squeeze(res_dufu(sensor1,:,:)); %te available residuals considering sensors 1 and 2 are stored in r1 and r2
+r1=squeeze(res_dufu(sensor1,:,:)); %the available residuals considering sensors 1 and 2 are stored in r1 and r2
 r2=squeeze(res_dufu(sensor2,:,:));
 
 figure
@@ -47,6 +53,7 @@ for leak=1:31
 
 end
 plot (0,0,'ko','MarkerSize',10) %plot origing
+
 quiver(0,0,Omega(1,1),Omega(2,1),0) %Plot leak 1 direction residuals 
 quiver(0,0,Omega(1,sensor1),Omega(2,sensor1),0) %Plot leak in sensor1 node direction residuals 
 quiver(0,0,Omega(1,sensor2),Omega(2,sensor2),0) %Plot leak in sensor2 node direction residuals 
