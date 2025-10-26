@@ -1,0 +1,475 @@
+%% Comparison of ATD for sensors 10&12 vs 14&30
+clear
+close all
+clc
+
+load nominal_residuals
+load matrix_D.mat
+
+% Define both sensor configurations
+configs = {[14, 30], [10, 12]};
+config_names = {'Sensors 14 & 30', 'Sensors 10 & 12'};
+
+% Load both residual files
+residual_files = {'hanoi_residuals_f_20.mat', 'hanoi_residuals_f_50.mat'};
+residual_names = {'f_20', 'f_50'};
+
+% Storage for results
+ATD_results = zeros(2, 2); % 2 configs x 2 residual types
+Gamma_all = cell(2, 2); % Store all confusion matrices
+
+%% Loop through configurations and residual types
+for config_idx = 1:2
+    sensor1 = configs{config_idx}(1);
+    sensor2 = configs{config_idx}(2);
+    
+    % Build sensitivity matrix for this configuration
+    Omega = [res_nom(sensor1,:); res_nom(sensor2,:)];
+    
+    for res_idx = 1:2
+        load(residual_files{res_idx})
+        
+        % Extract residuals for selected sensors
+        r1 = squeeze(res_dufu(sensor1,:,:));
+        r2 = squeeze(res_dufu(sensor2,:,:));
+        
+        N_residuals = size(r1, 1);
+        Gamma = zeros(31, 31);
+        
+        % Compute confusion matrix
+        for leak = 1:31
+            for k = 1:N_residuals
+                V_Ro = zeros(31, 1);
+                for hypothesis = 1:31
+                    V_Ro(hypothesis) = [r1(k,leak), r2(k,leak)] * [Omega(1,hypothesis), Omega(2,hypothesis)]' / ...
+                        (norm([r1(k,leak), r2(k,leak)]) * norm([Omega(1,hypothesis), Omega(2,hypothesis)]));
+                end
+                [~, winner] = max(V_Ro);
+                Gamma(leak, winner) = Gamma(leak, winner) + 1;
+            end
+        end
+        
+        % Store confusion matrix
+        Gamma_all{config_idx, res_idx} = Gamma;
+        
+        % Compute ATD
+        ATD = 0;
+        for leak = 1:31
+            for hypothesis = 1:31
+                ATD = ATD + Gamma(leak, hypothesis) * D(leak, hypothesis);
+            end
+        end
+        ATD_results(config_idx, res_idx) = ATD / (31 * N_residuals);
+    end
+end
+
+%% Display Results
+fprintf('\n=== ATD COMPARISON RESULTS ===\n\n');
+fprintf('Configuration       | ATD f_20  | ATD f_50\n');
+fprintf('------------------------------------------------\n');
+for config_idx = 1:2
+    fprintf('%-18s | %8.4f  | %8.4f\n', config_names{config_idx}, ...
+        ATD_results(config_idx, 1), ATD_results(config_idx, 2));
+end
+
+%% Find most difficult leaks to separate for each configuration
+fprintf('\n\n=== MOST DIFFICULT LEAKS TO SEPARATE ===\n\n');
+
+%% Find most difficult leaks to separate for each configuration (CORRECTED)
+fprintf('\n\n=== MOST DIFFICULT LEAKS TO SEPARATE ===\n\n');
+
+for config_idx = 1:2
+    fprintf('\n%s:\n', config_names{config_idx});
+    fprintf('  f_20:\n');
+    
+    Gamma = Gamma_all{config_idx, 1};
+    % Find leaks with lowest correct classification rate
+    total_samples = sum(Gamma, 2); % Total samples per leak
+    
+    % Only consider leaks that actually have samples
+    valid_leaks = find(total_samples > 0);
+    correct_rate = zeros(31, 1);
+    correct_rate(valid_leaks) = diag(Gamma(valid_leaks, valid_leaks)) ./ total_samples(valid_leaks);
+    
+    % Sort only valid leaks
+    correct_rate_valid = correct_rate(valid_leaks);
+    [sorted_rates, sorted_idx_valid] = sort(correct_rate_valid);
+    sorted_idx = valid_leaks(sorted_idx_valid);
+    
+    fprintf('    Most confused leaks (with samples): ');
+    for i = 1:min(5, length(sorted_idx))
+        fprintf('Node %d (%.1f%%) ', sorted_idx(i), sorted_rates(i)*100);
+    end
+    fprintf('\n');
+    
+    % Also report which nodes have no leak data
+    no_leak_nodes = find(total_samples == 0);
+    if ~isempty(no_leak_nodes)
+        fprintf('    Nodes with no leak simulations: ');
+        fprintf('%d ', no_leak_nodes);
+        fprintf('\n');
+    end
+    
+    fprintf('  f_50:\n');
+    Gamma = Gamma_all{config_idx, 2};
+    total_samples = sum(Gamma, 2);
+    valid_leaks = find(total_samples > 0);
+    correct_rate = zeros(31, 1);
+    correct_rate(valid_leaks) = diag(Gamma(valid_leaks, valid_leaks)) ./ total_samples(valid_leaks);
+    
+    correct_rate_valid = correct_rate(valid_leaks);
+    [sorted_rates, sorted_idx_valid] = sort(correct_rate_valid);
+    sorted_idx = valid_leaks(sorted_idx_valid);
+    
+    fprintf('    Most confused leaks (with samples): ');
+    for i = 1:min(5, length(sorted_idx))
+        fprintf('Node %d (%.1f%%) ', sorted_idx(i), sorted_rates(i)*100);
+    end
+    fprintf('\n');
+    
+    no_leak_nodes = find(total_samples == 0);
+    if ~isempty(no_leak_nodes)
+        fprintf('    Nodes with no leak simulations: ');
+        fprintf('%d ', no_leak_nodes);
+        fprintf('\n');
+    end
+end
+
+
+%% Save confusion matrices to CSV
+for config_idx = 1:2
+    for res_idx = 1:2
+        filename = sprintf('confusion_matrix_sensors_%d_%d_%s.csv', ...
+            configs{config_idx}(1), configs{config_idx}(2), residual_names{res_idx});
+        writematrix(Gamma_all{config_idx, res_idx}, filename);
+    end
+end
+
+fprintf('\n\nConfusion matrices saved to CSV files.\n');
+
+%% Visualize Comparison
+figure('Position', [100 100 1000 400])
+
+% ATD Comparison Bar Plot
+subplot(1,2,1)
+bar(ATD_results')
+set(gca, 'XTickLabel', residual_names)
+ylabel('ATD (Average Topological Distance)')
+xlabel('Residual Type')
+legend(config_names, 'Location', 'best')
+title('ATD Comparison Between Sensor Configurations')
+grid on
+
+% Correct Classification Rate Comparison
+subplot(1,2,2)
+correct_rates = zeros(2, 2);
+for config_idx = 1:2
+    for res_idx = 1:2
+        Gamma = Gamma_all{config_idx, res_idx};
+        correct_rates(config_idx, res_idx) = sum(diag(Gamma)) / sum(Gamma(:)) * 100;
+    end
+end
+bar(correct_rates')
+set(gca, 'XTickLabel', residual_names)
+ylabel('Correct Classification Rate (%)')
+xlabel('Residual Type')
+legend(config_names, 'Location', 'best')
+title('Classification Accuracy Comparison')
+grid on
+
+%% Create detailed comparison table for each leak
+fprintf('\n\n=== DETAILED LEAK-BY-LEAK COMPARISON (f_50) ===\n\n');
+fprintf('Leak Node | Sensors 14&30 Accuracy | Sensors 10&12 Accuracy | Difference\n');
+fprintf('--------------------------------------------------------------------------\n');
+
+Gamma_14_30 = Gamma_all{1, 2}; % f_50 for sensors 14&30
+Gamma_10_12 = Gamma_all{2, 2}; % f_50 for sensors 10&12
+
+accuracy_14_30 = diag(Gamma_14_30) ./ sum(Gamma_14_30, 2) * 100;
+accuracy_10_12 = diag(Gamma_10_12) ./ sum(Gamma_10_12, 2) * 100;
+difference = accuracy_10_12 - accuracy_14_30;
+
+for leak = 1:31
+    fprintf('   %2d     |        %5.1f%%         |        %5.1f%%         | %+6.1f%%\n', ...
+        leak, accuracy_14_30(leak), accuracy_10_12(leak), difference(leak));
+end
+
+fprintf('\n\nBetter configuration: ');
+if mean(ATD_results(1,:)) < mean(ATD_results(2,:))
+    fprintf('Sensors 14 & 30 (lower average ATD)\n');
+else
+    fprintf('Sensors 10 & 12 (lower average ATD)\n');
+end
+
+
+%% Compute ATD per individual leak node
+ATD_per_leak = zeros(31, 2); % 31 leaks x 2 residual types x 2 sensor configs
+
+for config_idx = 1:2
+    for res_idx = 1:2
+        Gamma = Gamma_all{config_idx, res_idx};
+        
+        % Compute ATD for each leak individually
+        for leak = 1:31
+            ATD_leak = 0;
+            total_samples = sum(Gamma(leak, :));
+            
+            if total_samples > 0  % Only if leak has samples
+                for hypothesis = 1:31
+                    ATD_leak = ATD_leak + Gamma(leak, hypothesis) * D(leak, hypothesis);
+                end
+                ATD_per_leak(leak, res_idx, config_idx) = ATD_leak / total_samples;
+            else
+                ATD_per_leak(leak, res_idx, config_idx) = NaN;  % Mark as no data
+            end
+        end
+    end
+end
+
+%% Display worst leaks for each configuration
+fprintf('\n=== WORST LEAKS TO LOCALIZE (PER-LEAK ATD) ===\n\n');
+
+for config_idx = 1:2
+    fprintf('%s:\n', config_names{config_idx});
+    
+    for res_idx = 1:2
+        fprintf('  %s:\n', residual_names{res_idx});
+        
+        atd_vec = ATD_per_leak(:, res_idx, config_idx);
+        valid_idx = ~isnan(atd_vec);  % Only valid leaks
+        valid_atd = atd_vec(valid_idx);
+        valid_leaks = find(valid_idx);
+        
+        % Sort by worst (highest) ATD
+        [sorted_atd, sorted_order] = sort(valid_atd, 'descend');
+        worst_leaks = valid_leaks(sorted_order);
+        
+        fprintf('    Top 5 worst leaks:\n');
+        for i = 1:min(5, length(worst_leaks))
+            fprintf('      Node %2d: ATD = %.3f\n', worst_leaks(i), sorted_atd(i));
+        end
+    end
+end
+
+%% Save ATD per leak to CSV
+for config_idx = 1:2
+    atd_table = array2table(ATD_per_leak(:, :, config_idx), ...
+        'VariableNames', residual_names, ...
+        'RowNames', arrayfun(@num2str, 1:31, 'UniformOutput', false));
+    
+    filename = sprintf('ATD_per_leak_sensors_%d_%d.csv', ...
+        configs{config_idx}(1), configs{config_idx}(2));
+    writetable(atd_table, filename, 'WriteRowNames', true);
+end
+
+%% Visualize worst leaks
+figure('Position', [100 100 1200 500])
+
+for config_idx = 1:2
+    subplot(1, 2, config_idx)
+    
+    % Average ATD across f_20 and f_50 for each leak
+    avg_atd = mean(ATD_per_leak(:, :, config_idx), 2);
+    
+    % Bar plot sorted by worst performance
+    [sorted_atd, sorted_idx] = sort(avg_atd, 'descend');
+    
+    bar(1:31, sorted_atd(sorted_idx))
+    xlabel('Leak Node (sorted by difficulty)')
+    ylabel('Average ATD (f_20 + f_50)')
+    title(sprintf('%s - Per-Leak ATD', config_names{config_idx}))
+    grid on
+    
+    % Highlight top 5 worst
+    hold on
+    for i = 1:min(5, length(sorted_idx))
+        text(i, sorted_atd(i) + 0.2, sprintf('N%d', sorted_idx(i)), ...
+            'HorizontalAlignment', 'center', 'FontSize', 8);
+    end
+end
+
+%% Create comparison table for worst leaks
+fprintf('\n\n=== COMPARISON OF WORST LEAKS BETWEEN CONFIGURATIONS ===\n');
+fprintf('Leak Node | Avg ATD (14&30) | Avg ATD (10&12) | Difference\n');
+fprintf('-----------------------------------------------------------\n');
+
+avg_atd_14_30 = mean(ATD_per_leak(:, :, 1), 2);
+avg_atd_10_12 = mean(ATD_per_leak(:, :, 2), 2);
+difference = avg_atd_10_12 - avg_atd_14_30;
+
+[~, worst_idx] = sort(max(avg_atd_14_30, avg_atd_10_12), 'descend');
+
+for i = 1:min(10, 31)
+    leak = worst_idx(i);
+    if ~isnan(avg_atd_14_30(leak)) || ~isnan(avg_atd_10_12(leak))
+        fprintf('   %2d     |      %.3f      |      %.3f      | %+.3f\n', ...
+            leak, avg_atd_14_30(leak), avg_atd_10_12(leak), difference(leak));
+    end
+end
+
+fprintf('\n=== VALIDATION: Per-Leak ATD Consistency ===\n\n');
+
+for config_idx = 1:2
+    for res_idx = 1:2
+        % Compute overall ATD the original way
+        Gamma = Gamma_all{config_idx, res_idx};
+        ATD_overall = 0;
+        for leak = 1:31
+            for hypothesis = 1:31
+                ATD_overall = ATD_overall + Gamma(leak, hypothesis) * D(leak, hypothesis);
+            end
+        end
+        N_residuals = sum(sum(Gamma)) / 31; % Average samples per leak
+        ATD_overall = ATD_overall / (31 * N_residuals);
+        
+        % Compute from per-leak ATD vector
+        atd_vec = ATD_per_leak(:, res_idx, config_idx);
+        valid_leaks = ~isnan(atd_vec);
+        ATD_from_vector = mean(atd_vec(valid_leaks));
+
+        
+        % Compare
+        fprintf('%s - %s:\n', config_names{config_idx}, residual_names{res_idx});
+        fprintf('  Overall ATD (direct):  %.6f\n', ATD_overall);
+        fprintf('  Overall ATD (vector):  %.6f\n', ATD_from_vector);
+        fprintf('  Difference:            %.6e\n\n', abs(ATD_overall - ATD_from_vector));
+        
+        if abs(ATD_overall - ATD_from_vector) < 1e-6
+            fprintf('  ✓ VALIDATION PASSED\n\n');
+        else
+            fprintf('  ✗ VALIDATION FAILED\n\n');
+        end
+    end
+end
+
+%% Which nodes are confused with each other?
+fprintf('\n=== CONFUSION PAIRS ANALYSIS ===\n\n');
+
+for config_idx = 1:2
+    for res_idx = 1:2
+        Gamma = Gamma_all{config_idx, res_idx};
+        
+        fprintf('%s - %s:\n', config_names{config_idx}, residual_names{res_idx});
+        fprintf('Top confusion pairs (actual leak → predicted as):\n\n');
+        
+        % Create list of all off-diagonal confusions
+        confusion_list = [];
+        for leak = 1:31
+            for hypothesis = 1:31
+                if leak ~= hypothesis && Gamma(leak, hypothesis) > 0
+                    % Store: [leak, hypothesis, count, distance]
+                    confusion_list = [confusion_list; leak, hypothesis, Gamma(leak, hypothesis), D(leak, hypothesis)];
+                end
+            end
+        end
+        
+        % Sort by frequency (descending)
+        [~, idx] = sort(confusion_list(:, 3), 'descend');
+        confusion_list = confusion_list(idx, :);
+        
+        % Display top 10 confusions
+        fprintf('  Leak → Predicted | Count | Distance\n');
+        fprintf('  ----------------------------------------\n');
+        for i = 1:min(10, size(confusion_list, 1))
+            leak = confusion_list(i, 1);
+            hyp = confusion_list(i, 2);
+            count = confusion_list(i, 3);
+            dist = confusion_list(i, 4);
+            fprintf('    %2d → %2d        |  %3d  |   %d\n', leak, hyp, count, dist);
+        end
+        fprintf('\n');
+    end
+end
+
+%% Hardest leaks = those with most similar signatures to other leaks
+%% Hardest leaks = those with most similar residuals (for BOTH f_20 and f_50)
+fprintf('\n=== MOST DIFFICULT LEAKS: RESIDUAL SIMILARITY ANALYSIS ===\n\n');
+
+for config_idx = 1:2
+    fprintf('\n%s:\n', config_names{config_idx});
+    
+    sensor1 = configs{config_idx}(1);
+    sensor2 = configs{config_idx}(2);
+    
+    for res_idx = 1:2
+        fprintf('  %s:\n', residual_names{res_idx});
+        
+        load(residual_files{res_idx})
+        
+        % Extract residuals for selected sensors
+        r1 = squeeze(res_dufu(sensor1,:,:));
+        r2 = squeeze(res_dufu(sensor2,:,:));
+        
+        % For each leak, compute average similarity to all other leaks
+        avg_similarity = zeros(31, 1);
+        
+        for leak1 = 1:31
+            similarities = [];
+            
+            for sample = 1:size(r1, 1)
+                sig1 = [r1(sample, leak1), r2(sample, leak1)];
+                
+                for leak2 = 1:31
+                    if leak1 ~= leak2
+                        sig2 = [r1(sample, leak2), r2(sample, leak2)];
+                        
+                        if norm(sig1) > 0 && norm(sig2) > 0
+                            sim = abs(dot(sig1, sig2) / (norm(sig1) * norm(sig2)));
+                            similarities = [similarities; sim];
+                        end
+                    end
+                end
+            end
+            
+            if ~isempty(similarities)
+                avg_similarity(leak1) = mean(similarities);
+            end
+        end
+        
+        % Leaks with highest average similarity are hardest to distinguish
+        [sorted_sim, sorted_idx] = sort(avg_similarity, 'descend');
+        
+        fprintf('    Leaks with MOST SIMILAR residuals (hardest to separate):\n');
+        fprintf('    Node | Avg Residual Similarity\n');
+        fprintf('    --------------------------------\n');
+        for i = 1:min(5, 31)
+            leak = sorted_idx(i);
+            fprintf('     %2d  |        %.4f\n', leak, sorted_sim(i));
+        end
+        
+        % Correlate with actual confusion
+        Gamma = Gamma_all{config_idx, res_idx};
+        
+        similarity_vec = [];
+        confusion_vec = [];
+        
+        for leak1 = 1:31
+            for leak2 = 1:31
+                if leak1 ~= leak2
+                    similarity = avg_similarity(leak1);
+                    confusion = Gamma(leak1, leak2);
+                    
+                    similarity_vec = [similarity_vec; similarity];
+                    confusion_vec = [confusion_vec; confusion];
+                end
+            end
+        end
+        
+        % % Compute correlation
+        % if length(similarity_vec) > 1
+        %     corr_coeff = corr(similarity_vec, confusion_vec);
+        % 
+        %     if corr_coeff > 0.5
+        %         interp = 'STRONG correlation';
+        %     elseif corr_coeff > 0.3
+        %         interp = 'MODERATE correlation';
+        %     else
+        %         interp = 'Weak correlation';
+        %     end
+        % 
+        %     fprintf('    Correlation (Similarity ↔ Confusion): %.4f (%s)\n', corr_coeff, interp);
+        % end
+        fprintf('\n');
+    end
+end
+

@@ -77,14 +77,13 @@ for k=1:length(flow_leak1)
     end
     
     flow_hour_i_l1 = flow_leak1(j+days_l1*24);
-    % Computations for leak scenario 1
-    y_hat_l1(j) = (1/n_days_l1  ) * sum(flow_hour_i_l1);
-    d_wdn_hat_l1(k) = y_hat_l1(j); 
+
+    d_wdn_hat_l1(k) = y_hat(j); 
     thresh_k_l1(k) = thresh(j);
 
     %equations found in slde 18
 
-    r_l1(k) = flow_leak1(k) - y_hat_l1(j); 
+    r_l1(k) = flow_leak1(k) - y_hat(j); 
 
     if (r_l1(k) <= beta * thresh(j))
         phi_l1(k) = 0;
@@ -150,11 +149,10 @@ for k=1:length(flow_leak2)
     
     flow_hour_i_l2 = flow_leak2(j+days_l2*24);
 
-    y_hat_l2(j) = (1/n_days_l2  ) * sum(flow_hour_i_l2);
-    d_wdn_hat_l2(k) = y_hat_l2(j); 
+    d_wdn_hat_l2(k) = y_hat(j); 
     thresh_k_l2(k) = thresh(j);
 
-    r_l2(k) = flow_leak2(k) - y_hat_l2(j); 
+    r_l2(k) = flow_leak2(k) - y_hat(j); 
 
     if (r_l2(k) <= beta * thresh(j))
         phi_l2(k) = 0;
