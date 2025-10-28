@@ -89,7 +89,7 @@ for i_config = 1:2
         total_samples = sum(Gamma_comp, 2); % Total samples per leak
         classification_rate = diag(Gamma_comp) ./ total_samples; % Correct localizations over total guesses
         [sorted_rates, sorted_nodes] = sort(classification_rate);
-`
+
         fprintf('Most confused leaks (with samples): ');
         for i = 1:min(10, length(sorted_nodes))
             fprintf('Node %d (%.1f%%) ', sorted_nodes(i), sorted_rates(i)*100);
