@@ -79,6 +79,8 @@ end
 %% Hardest leaks to separate
 % To detect or localize because of sensor location in the network.
 
+
+fprintf('Most confused leaks (with samples): \n');
 for i_config = 1:2
     for data = 1:2
         fprintf('\n%s:\n', config_names{i_config});
@@ -90,7 +92,7 @@ for i_config = 1:2
         classification_rate = diag(Gamma_comp) ./ total_samples; % Correct localizations over total guesses
         [sorted_rates, sorted_nodes] = sort(classification_rate);
 
-        fprintf('Most confused leaks (with samples): ');
+        
         for i = 1:min(10, length(sorted_nodes))
             fprintf('Node %d (%.1f%%) ', sorted_nodes(i), sorted_rates(i)*100);
             fprintf('\n')
