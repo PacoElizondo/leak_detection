@@ -86,7 +86,7 @@ for i_config = 1:2
         fprintf('\n%s:\n', config_names{i_config});
         fprintf('%s:\n', residual_names{data});
         
-        Gamma_comp = Gamma{i_config, 1};
+        Gamma_comp = Gamma{i_config, data};
 
         total_samples = sum(Gamma_comp, 2); % Total samples per leak
         classification_rate = diag(Gamma_comp) ./ total_samples; % Correct localizations over total guesses
