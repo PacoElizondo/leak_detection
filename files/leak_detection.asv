@@ -1,0 +1,235 @@
+clear
+close all
+clc
+
+% Leak Detection
+
+load leak_free_data.mat % flow leak free scenario variable flow
+
+% parameters
+beta = 1.1;
+
+% Plot raw flow data
+figure
+plot(flow, 'k')
+title('Leak-Free Scenario: Raw Flow Data')
+xlabel('Time (hours)')
+ylabel('Flow')
+grid on
+
+days = 0:length(flow)/24-1; % vector of days (56)
+n_days = length(days);
+
+% alloc
+y_hat = zeros(1,24);
+thresh = zeros(1,24);
+
+% Plot hourly flow data with statistics
+figure
+for i = 1:24
+    flow_hour_i = flow(i + days*24); % 56 samples of each hour
+    subplot(6,4,i)
+    plot(flow_hour_i, 'b', 'LineWidth', 1.2)
+    title(['Hour ', num2str(i), ' Flow'])
+    xlabel('Day')
+    ylabel('Flow')
+    grid on
+    
+    % Computations
+    y_hat(i) = mean(flow_hour_i); % estimation
+    thresh(i) = max(flow_hour_i - y_hat(i)); % adaptive threshold
+end
+
+% Plot predicted daily flow and computed thresholds
+figure
+plot(y_hat, 'b-', 'LineWidth', 2)
+hold on
+plot(y_hat + thresh, 'r--', 'LineWidth', 1.5)
+plot(y_hat - thresh, 'r--', 'LineWidth', 1.5)
+title('Predicted Hourly Flow and Adaptive Thresholds')
+xlabel('Hour of Day')
+ylabel('Flow')
+legend('Predicted Flow', 'Threshold', 'Location', 'northeastoutside')
+grid on
+hold off
+
+% This threshold will be used in the leak scenarios below to detect leaks
+
+%% Leak Scenario 1
+close all
+clc
+load leak_scenario1_data.mat % flow leak scenario 1 variable flow_leak1 (mn)
+
+% Plot leak scenario 1 raw data
+figure
+plot(flow_leak1, 'k')
+title('Leak Scenario 1: Raw Flow Data')
+xlabel('Time (hours)')
+ylabel('Flow')
+grid on
+
+% alloc
+y_hat_l1 = zeros(1,24);
+d_wdn_hat_l1 = zeros(1,length(flow_leak1));
+thresh_k_l1 = zeros(1,length(flow_leak1)); % for plotting
+r_l1 = zeros(1,length(flow_leak1));
+phi_l1 = zeros(1,length(flow_leak1));
+days_l1 = 0:length(flow_leak1)/24-1;
+n_days_l1 = length(days_l1);
+
+for k = 1:length(flow_leak1)
+    j = mod(k,24); % computation of the day hour
+    if j == 0
+        j = 24;
+    end
+    
+    flow_hour_i_l1 = flow_leak1(j + days_l1*24);
+    
+    % Computations for leak scenario 1
+    y_hat_l1(j) = mean(flow_hour_i_l1);
+    d_wdn_hat_l1(k) = y_hat_l1(j); 
+    thresh_k_l1(k) = thresh(j);
+    
+    r_l1(k) = flow_leak1(k) - y_hat_l1(j); 
+    
+    if r_l1(k) <= beta * thresh(j)
+        phi_l1(k) = 0;
+    else
+        phi_l1(k) = 1;
+    end
+end
+
+% Plot predicted flow and thresholds for leak scenario 1
+figure
+plot(y_hat_l1, 'b-', 'LineWidth', 2)
+hold on
+plot(y_hat_l1 + thresh, 'r--', 'LineWidth', 1.5)
+plot(y_hat_l1 - thresh, 'r--', 'LineWidth', 1.5)
+title('Leak Scenario 1: Predicted Hourly Flow and Thresholds')
+xlabel('Hour of Day')
+ylabel('Flow')
+legend('Predicted Flow', 'Threshold', 'Location', 'northeastoutside')
+grid on
+hold off
+
+% Plot actual and predicted flow over time
+figure
+plot(flow_leak1, 'k-', 'DisplayName', 'Measured Flow')
+hold on
+plot(d_wdn_hat_l1, 'b-', 'LineWidth', 1.5, 'DisplayName', 'Predicted Flow')
+title('Leak Scenario 1: Measured vs Predicted Flow')
+xlabel('Time (hours)')
+ylabel('Flow')
+legend('Location', 'northeastoutside')
+grid on
+hold off
+
+% Plot threshold values and residuals
+figure
+plot(thresh_k_l1, 'r-', 'LineWidth', 1.5, 'DisplayName', '\ theta_k')
+hold on
+plot(r_l1, 'k-', 'LineWidth', 1, 'DisplayName', 'r_k')
+title('Leak Scenario 1: Threshold and Residuals Over Time')
+xlabel('Time (hours)')
+ylabel('Value')
+legend('Location', 'northeastoutside')
+grid on
+hold off
+
+% Plot detection signal phi (0 no leak, 1 leak)
+figure
+stairs(phi_l1, 'r-', 'LineWidth', 0.5)
+ylim([-0.1 1.1])
+yticks([0 1])
+yticklabels({'No Leak','Leak Detected'})
+title('Leak Scenario 1: Leak Detection Signal \phi')
+xlabel('Time (hours)')
+grid on
+
+%% Leak Scenario 2
+load leak_scenario2_data.mat % flow leak scenario 2 variable flow_leak2
+
+% Plot raw flow data for leak scenario 2
+figure
+plot(flow_leak2, 'k')
+title('Leak Scenario 2: Raw Flow Data')
+xlabel('Time (hours)')
+ylabel('Flow')
+grid on
+
+% alloc
+y_hat_l2 = zeros(1,24);
+d_wdn_hat_l2 = zeros(1,length(flow_leak2));
+thresh_k_l2 = zeros(1,length(flow_leak2)); % for plotting
+r_l2 = zeros(1,length(flow_leak2));
+phi_l2 = zeros(1,length(flow_leak2));
+days_l2 = 0:length(flow_leak2)/24-1;
+n_days_l2 = length(days_l2);
+
+for k = 1:length(flow_leak2)
+    j = mod(k,24); % computation of the day hour
+    if j == 0
+        j = 24;
+    end
+    
+    flow_hour_i_l2 = flow_leak2(j + days_l2*24);
+    
+    y_hat_l2(j) = mean(flow_hour_i_l2);
+    d_wdn_hat_l2(k) = y_hat_l2(j);
+    thresh_k_l2(k) = thresh(j);
+    
+    r_l2(k) = flow_leak2(k) - y_hat_l2(j);
+    
+    if r_l2(k) <= beta * thresh(j)
+        phi_l2(k) = 0;
+    else
+        phi_l2(k) = 1;
+    end
+end
+
+% Plot predicted flow and thresholds for leak scenario 2
+figure
+plot(y_hat_l2, 'b-', 'LineWidth', 2)
+hold on
+plot(y_hat_l2 + thresh, 'r--', 'LineWidth', 1.5)
+plot(y_hat_l2 - thresh, 'r--', 'LineWidth', 1.5)
+title('Leak Scenario 2: Predicted Hourly Flow and Thresholds')
+xlabel('Hour of Day')
+ylabel('Flow')
+legend('Predicted Flow', 'Threshold', 'Location', 'northeastoutside')
+grid on
+hold off
+
+% Plot actual and predicted flow
+figure
+plot(flow_leak2, 'k-', 'DisplayName', 'Measured Flow')
+hold on
+plot(d_wdn_hat_l2, 'b-', 'LineWidth', 1.5, 'DisplayName', 'Predicted Flow')
+title('Leak Scenario 2: Measured vs Predicted Flow')
+xlabel('Time (hours)')
+ylabel('Flow')
+legend('Location', 'northeastoutside')
+grid on
+hold off
+
+% Plot threshold values and residuals
+figure
+plot(thresh_k_l2, 'r-', 'LineWidth', 1.5, 'DisplayName', '\ theta_k')
+hold on
+plot(r_l2, 'k-', 'LineWidth', 1, 'DisplayName', 'r_k')
+title('Leak Scenario 2: Threshold and Residuals Over Time')
+xlabel('Time (hours)')
+ylabel('Value')
+legend('Location', 'northeastoutside')
+grid on
+hold off
+
+% Plot detection signal phi (0 no leak, 1 leak)
+figure
+stairs(phi_l2, 'r-', 'LineWidth', 0.5)
+ylim([-0.1 1.1])
+yticks([0 1])
+yticklabels({'No Leak','Leak Detected'})
+title('Leak Scenario 2: Leak Detection Signal \phi')
+xlabel('Time (hours)')
+grid on
