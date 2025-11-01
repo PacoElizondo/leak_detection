@@ -85,12 +85,11 @@ for k = 1:length(flow_leak1)
     
     flow_hour_i_l1 = flow_leak1(j + days_l1*24);
     
-    % Computations for leak scenario 1
-    y_hat_l1(j) = mean(flow_hour_i_l1);
-    d_wdn_hat_l1(k) = y_hat_l1(j); 
+    % Adjust vector size
+    d_wdn_hat_l1(k) = y_hat(j); 
     thresh_k_l1(k) = thresh(j);
     
-    r_l1(k) = flow_leak1(k) - y_hat_l1(j); 
+    r_l1(k) = flow_leak1(k) - d_wdn_hat_l1(k); 
     
     if r_l1(k) <= beta * thresh(j)
         phi_l1(k) = 0;
@@ -98,19 +97,6 @@ for k = 1:length(flow_leak1)
         phi_l1(k) = 1;
     end
 end
-
-% Plot predicted flow and thresholds for leak scenario 1
-figure
-plot(y_hat_l1, 'b-', 'LineWidth', 2)
-hold on
-plot(y_hat_l1 + thresh, 'r--', 'LineWidth', 1.5)
-plot(y_hat_l1 - thresh, 'r--', 'LineWidth', 1.5)
-title('Leak Scenario 1: Predicted Hourly Flow and Thresholds')
-xlabel('Hour of Day')
-ylabel('Flow')
-legend('Predicted Flow', 'Threshold', 'Location', 'northeastoutside')
-grid on
-hold off
 
 % Plot actual and predicted flow over time
 figure
@@ -126,7 +112,7 @@ hold off
 
 % Plot threshold values and residuals
 figure
-plot(thresh_k_l1, 'r-', 'LineWidth', 1.5, 'DisplayName', '\ theta_k')
+plot(thresh_k_l1, 'r-', 'LineWidth', 1.5, 'DisplayName', '\theta_k')
 hold on
 plot(r_l1, 'k-', 'LineWidth', 1, 'DisplayName', 'r_k')
 title('Leak Scenario 1: Threshold and Residuals Over Time')
@@ -173,12 +159,12 @@ for k = 1:length(flow_leak2)
     end
     
     flow_hour_i_l2 = flow_leak2(j + days_l2*24);
-    
-    y_hat_l2(j) = mean(flow_hour_i_l2);
-    d_wdn_hat_l2(k) = y_hat_l2(j);
+
+    % Adjust vector size
+    d_wdn_hat_l2(k) = y_hat(j);
     thresh_k_l2(k) = thresh(j);
     
-    r_l2(k) = flow_leak2(k) - y_hat_l2(j);
+    r_l2(k) = flow_leak2(k) - d_wdn_hat_l2(k);
     
     if r_l2(k) <= beta * thresh(j)
         phi_l2(k) = 0;
@@ -186,19 +172,6 @@ for k = 1:length(flow_leak2)
         phi_l2(k) = 1;
     end
 end
-
-% Plot predicted flow and thresholds for leak scenario 2
-figure
-plot(y_hat_l2, 'b-', 'LineWidth', 2)
-hold on
-plot(y_hat_l2 + thresh, 'r--', 'LineWidth', 1.5)
-plot(y_hat_l2 - thresh, 'r--', 'LineWidth', 1.5)
-title('Leak Scenario 2: Predicted Hourly Flow and Thresholds')
-xlabel('Hour of Day')
-ylabel('Flow')
-legend('Predicted Flow', 'Threshold', 'Location', 'northeastoutside')
-grid on
-hold off
 
 % Plot actual and predicted flow
 figure
@@ -214,7 +187,7 @@ hold off
 
 % Plot threshold values and residuals
 figure
-plot(thresh_k_l2, 'r-', 'LineWidth', 1.5, 'DisplayName', '\ theta_k')
+plot(thresh_k_l2, 'r-', 'LineWidth', 1.5, 'DisplayName', '\theta_k')
 hold on
 plot(r_l2, 'k-', 'LineWidth', 1, 'DisplayName', 'r_k')
 title('Leak Scenario 2: Threshold and Residuals Over Time')

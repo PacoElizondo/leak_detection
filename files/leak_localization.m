@@ -121,7 +121,7 @@ for i_config = 1:2
     xlabel(sprintf('Pressure residual in node %d', sensor1), 'FontSize', 12);
     ylabel(sprintf('Pressure residual in node %d', sensor2), 'FontSize', 12);
     title('Nominal Residuals for the 31 Leaks', 'FontSize', 14);
-    legend('Leak residuals','Origin','Leak #1','Leak @sensor1','Leak @sensor2', ...
+    legend('Leak residuals','Origin','Leak at node 1','Leak at sensor 1','Leak at sensor 2', ...
         'Location','bestoutside');
     grid on
     box on
